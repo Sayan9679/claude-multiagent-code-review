@@ -1,0 +1,32 @@
+{
+  "pullRequest": {
+    "owner": "airaamane",
+    "repo": "simple-todo-app",
+    "number": 1
+  },
+  "fileReviews": [],
+  "summary": {
+    "totalFiles": 0,
+    "overallScore": 0,
+    "criticalIssues": 0,
+    "highPriorityTests": 0,
+    "refactoringOpportunities": 0
+  },
+  "recommendations": [
+    {
+      "priority": "critical",
+      "category": "access-error",
+      "description": "Unable to access pull request airaamane/simple-te without proper access permissions, or the pull request number may be incorrect. Please verify: (1) The repository exists and is accessible, (2) Pull request #1 exists in this repository, (3) You have the necessary permissions to access this repository.",
+      "files": []
+    }
+  ],
+  "metadata": {
+    "analyzedAt": "2026-09-24T00:00:00Z",
+    "duration": 0,
+    "agentVersions": {
+      "code-quality-analyzer": "not-run",
+      "test-coverage-analyzer": "not-run",
+      "refactoring-suggester": "not-run"
+    }
+  }
+}

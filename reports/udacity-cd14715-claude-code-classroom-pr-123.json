@@ -1,0 +1,32 @@
+{
+  "fileReviews": [],
+  "pullRequest": {
+    "owner": "udacity",
+    "repo": "cd14715-claude-code-classroom",
+    "number": 123
+  },
+  "summary": {
+    "totalFiles": 0,
+    "overallScore": 0,
+    "criticalIssues": 0,
+    "highPriorityTests": 0,
+    "refactoringOpportunities": 0
+  },
+  "recommendations": [
+    {
+      "priority": "critical",
+      "category": "access-error",
+      "description": "Unable to fetch pull request details due to missing permissions. GitHub MCP tools (mcp__github__get_pull_request, mcp__github__get_pull_request_files) require user authorization to access the repository and pull request data.",
+      "files": []
+    }
+  ],
+  "metadata": {
+    "analyzedAt": "2026-09-24T00:00:00Z",
+    "duration": 0,
+    "agentVersions": {
+      "code-quality-analyzer": "not-run",
+      "test-coverage-analyzer": "not-run",
+      "refactoring-suggester": "not-run"
+    }
+  }
+}
