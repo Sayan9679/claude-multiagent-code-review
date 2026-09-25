@@ -10,6 +10,8 @@ import {
   refactoringSuggester,
 } from './agents/index.js';
 import { buildOrchestratorPrompt } from './prompts/orchestrator.prompt.js';
+import { withTimeout } from './utils/error-handler.js';
+import { globalRateLimiter } from './utils/rate-limiter.js';
 
 export interface OrchestratorOptions {
   model?: string;
@@ -37,83 +39,98 @@ export class CodeReviewOrchestrator {
 
     const prompt = buildOrchestratorPrompt(owner, repo, prNumber);
 
-    const queryResult = query({
-      prompt,
-      options: {
-        model:
-          this.options.model ||
-          process.env.ANTHROPIC_MODEL ||
-          'claude-sonnet-4-5-20250929',
+    const executeReview = async (): Promise<ReviewReport> => {
+      await globalRateLimiter.acquire(1000);
+      try {
+        const queryResult = query({
+          prompt,
+          options: {
+            model:
+              this.options.model ||
+              process.env.ANTHROPIC_MODEL ||
+              'claude-sonnet-4-5-20250929',
 
-        cwd: this.options.cwd || process.cwd(),
+            cwd: this.options.cwd || process.cwd(),
 
-        mcpServers: mcpServersConfig,
+            mcpServers: mcpServersConfig,
 
-        agents: {
-          codeQualityAnalyzer,
-          testCoverageAnalyzer,
-          refactoringSuggester,
-        },
+            agents: {
+              codeQualityAnalyzer,
+              testCoverageAnalyzer,
+              refactoringSuggester,
+            },
 
+            allowedTools: [
+              'Task',
+              'mcp__github__pull_request_read',
+              'mcp__github__get_file_contents',
+              'Skill',
+            ],
 
+            outputFormat: {
+              type: 'json_schema',
+              schema: zodToJsonSchema(
+                ReviewReportSchema as any,
+                {
+                  $refStrategy: 'root',
+                }
+              ),
+            },
+          },
+        });
 
-        allowedTools: [
-          'Task',
-          'mcp__github__pull_request_read',
-          'mcp__github__get_file_contents',
-          'Skill',
-        ],
+        let finalReport: ReviewReport | undefined;
 
-        outputFormat: {
-          type: 'json_schema',
-         schema: zodToJsonSchema(
-  ReviewReportSchema as any,
-  {
-    $refStrategy: 'root',
-  }
-),
-        },
-      },
-    });
+        for await (const message of queryResult) {
+          if (
+            message.type === 'result' &&
+            message.subtype === 'success' &&
+            message.structured_output
+          ) {
+            finalReport = ReviewReportSchema.parse(
+              message.structured_output
+            );
+          }
 
-    let finalReport: ReviewReport | undefined;
+          if (
+            message.type === 'result' &&
+            message.subtype !== 'success'
+          ) {
+            throw new Error(
+              `Code review failed: ${message.subtype}`
+            );
+          }
+        }
 
-    for await (const message of queryResult) {
-      if (
-        message.type === 'result' &&
-        message.subtype === 'success' &&
-        message.structured_output
-      ) {
-        finalReport = ReviewReportSchema.parse(
-          message.structured_output
-        );
+        if (!finalReport) {
+          throw new Error(
+            'Code review completed without a valid structured report.'
+          );
+        }
+
+        finalReport = {
+          ...finalReport,
+          metadata: {
+            ...finalReport.metadata,
+            analyzedAt: new Date().toISOString(),
+            duration: Date.now() - startTime,
+          },
+        };
+
+        return ReviewReportSchema.parse(finalReport);
+      } finally {
+        globalRateLimiter.release();
       }
+    };
 
-      if (
-        message.type === 'result' &&
-        message.subtype !== 'success'
-      ) {
-        throw new Error(
-          `Code review failed: ${message.subtype}`
-        );
-      }
-    }
-
-    if (!finalReport) {
-      throw new Error(
-        'Code review completed without a valid structured report.'
+    if (this.options.timeoutMs && this.options.timeoutMs > 0) {
+      return withTimeout(
+        executeReview,
+        this.options.timeoutMs,
+        'Code review operation timed out'
       );
     }
 
-    finalReport = {
-      ...finalReport,
-      metadata: {
-        ...finalReport.metadata,
-        analyzedAt: new Date().toISOString(),
-        duration: Date.now() - startTime,
-      },
-    };
-
-    return ReviewReportSchema.parse(finalReport);
+    return executeReview();
   }
 }

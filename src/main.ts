@@ -57,6 +57,15 @@ async function main(): Promise<void> {
     console.log('🔐 Using AWS Bedrock authentication');
   }
 
+  // Validate GitHub token
+  if (process.env.GITHUB_TOKEN) {
+    console.log('🐙 GitHub token configured for MCP');
+  } else {
+    console.warn(
+      '⚠️ Warning: GITHUB_TOKEN is not set. Requests to public repositories will work, but rate limits may apply.'
+    );
+  }
+
   // Validate model
   const model = process.env.ANTHROPIC_MODEL;
 
